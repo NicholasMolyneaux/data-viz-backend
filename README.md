@@ -4,7 +4,7 @@ sudo apt-get install postgresql-9.5 -> no problems
 
 Change login rights:
 http://suite.opengeo.org/docs/latest/dataadmin/pgGettingStarted/firstconnect.html
-Passwrod usual for me.
+Password: DataVizDev
 
 ## Install postgREST -> Obsolete, use play framework instead##
 follow step 3 of:

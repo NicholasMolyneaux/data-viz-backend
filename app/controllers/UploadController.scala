@@ -4,16 +4,26 @@ package controllers
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
 
-import javax.inject._
+import akka.stream.IOResult
+import akka.stream.scaladsl._
+import akka.util.ByteString
+import javax.inject.Inject
+import play.api._
+import play.api.data.Form
+import play.api.data.Forms._
+import play.api.libs.streams._
+import play.api.mvc.MultipartFormData.FilePart
+import play.api.mvc._
+import play.core.parsers.Multipart.FileInfo
 
 import scala.concurrent.{ExecutionContext, Future}
 
+import upload.UploadVSForm
 
 /**
   * This controller handles a file upload.
   */
-@Singleton
-class HomeController @Inject() (cc:MessagesControllerComponents)
+class UploadController @Inject() (cc:MessagesControllerComponents)
                                (implicit executionContext: ExecutionContext)
   extends MessagesAbstractController(cc) {
 
@@ -21,10 +31,9 @@ class HomeController @Inject() (cc:MessagesControllerComponents)
 
   val form = Form(
     mapping(
-      "name" -> text,
       "location" -> text,
       "description" -> text
-    )(UploadVSForms.apply)(UploadVSForms.unapply)
+    )(UploadVSForm.apply)(UploadVSForm.unapply)
   )
 
   /**
@@ -60,12 +69,14 @@ class HomeController @Inject() (cc:MessagesControllerComponents)
     * A generic operation on the temporary file that deletes the temp file after completion.
     */
   private def operateOnTempFile(file: File): Unit = {
-    Files.createDirectory(Paths.get("/home/nicholas/tmp/test"))
+    if ( !Files.exists(Paths.get("/home/nicholas/tmp/test"))) {
+      Files.createDirectory(Paths.get("/home/nicholas/tmp/test"))
+    }
 
-    val destDir: String = "/home/nicholas/tmp/"
+    val destDir: String = "/home/nicholas/tmp/test/"
     logger.info(s"size of uploaded file= ${Files.size(file.toPath)}")
-    Files.mv(file.toPath, Files.getPath(destDir+file.getName))
-    logger.info(s"file moved to ${"/home/nicholas/tmp/"+file.getName}")
+    Files.move(file.toPath, Paths.get(destDir+file.getName))
+    logger.info(s"file moved to ${"/home/nicholas/tmp/test/"+file.getName}")
 
     // TODO: call processing function and then insert results in DB
   }
@@ -76,13 +87,25 @@ class HomeController @Inject() (cc:MessagesControllerComponents)
     * @return
     */
   def upload = Action(parse.multipartFormData(handleFilePartAsFile)) { implicit request =>
-    val fileOption = request.body.file("name").map {
-      case FilePart(key, filename, contentType, file) if (contentType.get =="application/json") =>
+
+    // collect form input if no error is produced
+    val formInput: Option[UploadVSForm] = form.bindFromRequest.fold(
+      errForm => {
+        BadRequest("error with form")
+        None
+      },
+      spec => Some(spec)
+    )
+    //Ok(formInput.get.toString)
+
+    request.body.file("myFile").foreach {
+      case FilePart(key, filename, contentType, file) /*if (contentType.get =="application/json")*/ =>
         logger.info(s"key = ${key}, filename = ${filename}, contentType = ${contentType}, file = $file")
         operateOnTempFile(file)
     }
 
-    Ok(s"file size = ${fileOption.getOrElse("no file")}")
+    Ok("Finished processing upload form: " + formInput.get.location + ", description: " + formInput.get.description)
+
   }
 
 }
