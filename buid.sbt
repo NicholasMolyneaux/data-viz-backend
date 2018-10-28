@@ -11,10 +11,12 @@ def gatlingVersion(scalaBinVer: String): String = scalaBinVer match {
   case "2.12" => "2.3.1"
 }
 
-libraryDependencies += "org.postgresql" % "postgresql" % "9.4.1212"
+//libraryDependencies += "org.postgresql" % "postgresql" % "9.4.1212"
+libraryDependencies += "org.postgresql" % "postgresql" % "9.2-1004-jdbc41"
 libraryDependencies += "com.typesafe.play" %% "play-slick" % "3.0.3"
 //libraryDependencies += "com.typesafe.play" %% "play-slick-evolutions" % "3.0.3"
 libraryDependencies += guice
+libraryDependencies += filters
 libraryDependencies += "org.joda" % "joda-convert" % "1.9.2"
 libraryDependencies += "net.logstash.logback" % "logstash-logback-encoder" % "4.11"
 

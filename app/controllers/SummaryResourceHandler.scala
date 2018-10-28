@@ -35,9 +35,8 @@ object PersonSummaryResource {
 /**
   * Controls access to the backend data, returning [[PersonSummaryResource]]
   */
-class SummaryResourceHandler @Inject()(
-                                        routerProvider: Provider[SummaryDataRouter],
-                                        trackingDataRepo: TrackingDataRepository)(implicit ec: ExecutionContext) {
+class SummaryResourceHandler @Inject()(routerProvider: Provider[SummaryDataRouter],
+                                       trackingDataRepo: TrackingDataRepository)(implicit ec: ExecutionContext) {
 
   def lookup(id: Long)(implicit mc: MarkerContext): Future[Option[PersonSummaryResource]] = {
     val summaryFuture = trackingDataRepo.get(id)

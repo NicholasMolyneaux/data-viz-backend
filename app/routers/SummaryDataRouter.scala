@@ -25,7 +25,9 @@ class SummaryDataRouter @Inject()(controller: SummaryController) extends SimpleR
     case GET(p"/$id") => {
       if (id.contains(",")) {
         controller.show(id.split(",").map(_.toLong).toVector)
-      } else { controller.show(id.toLong) }
+      } else {
+        controller.show(id.toLong)
+      }
     }
 
   }

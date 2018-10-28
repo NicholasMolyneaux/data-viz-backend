@@ -16,21 +16,21 @@ class SummaryController @Inject()(cc: PostControllerComponents)(implicit ec: Exe
 
   def index: Action[AnyContent] = PostAction.async { implicit request =>
     logger.trace("index: ")
-    personSummaryResourceHandler.find.map { posts =>
+    smmaryResourceHandler.find.map { posts =>
       Ok(Json.toJson(posts))
     }
   }
 
   def show(id: Long): Action[AnyContent] = PostAction.async { implicit request =>
     logger.trace(s"show: id = $id")
-    personSummaryResourceHandler.lookup(id).map { post =>
+    smmaryResourceHandler.lookup(id).map { post =>
       Ok(Json.toJson(post))
     }
   }
 
   def show(ids: Vector[Long]): Action[AnyContent] = PostAction.async { implicit request =>
     logger.trace(s"show: id = $ids")
-    personSummaryResourceHandler.lookup(ids).map { post =>
+    smmaryResourceHandler.lookup(ids).map { post =>
       Ok(Json.toJson(post))
     }
   }

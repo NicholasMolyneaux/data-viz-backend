@@ -17,12 +17,14 @@ import scala.concurrent.{ExecutionContext, Future}
   * security credentials, and useful shortcut methods.
   */
 trait PostRequestHeader extends MessagesRequestHeader with PreferredMessagesProvider
+
 class PostRequest[A](request: Request[A], val messagesApi: MessagesApi) extends WrappedRequest(request) with PostRequestHeader
 
 /**
   * Provides an implicit marker that will show the request in all logger statements.
   */
 trait RequestMarkerContext {
+
   import net.logstash.logback.marker.Markers
 
   private def marker(tuple: (String, Any)) = Markers.append(tuple._1, tuple._2)
@@ -46,8 +48,8 @@ trait RequestMarkerContext {
   * the request with contextual data, and manipulate the
   * result.
   */
-class PostActionBuilder @Inject()(messagesApi: MessagesApi, playBodyParsers: PlayBodyParsers)
-                                 (implicit val executionContext: ExecutionContext)
+class CustomActionBuilder @Inject()(messagesApi: MessagesApi, playBodyParsers: PlayBodyParsers)
+                                   (implicit val executionContext: ExecutionContext)
   extends ActionBuilder[PostRequest, AnyContent]
     with RequestMarkerContext
     with HttpVerbs {
@@ -69,7 +71,7 @@ class PostActionBuilder @Inject()(messagesApi: MessagesApi, playBodyParsers: Pla
     future.map { result =>
       request.method match {
         case GET | HEAD =>
-          result.withHeaders("Cache-Control" -> s"max-age: 100")
+          result.withHeaders("Cache-Control" -> s"max-age: 100", "Access-Control-Allow-Origin" -> "*")
         case other =>
           result
       }
@@ -83,8 +85,8 @@ class PostActionBuilder @Inject()(messagesApi: MessagesApi, playBodyParsers: Pla
   * This is a good way to minimize the surface area exposed to the controller, so the
   * controller only has to have one thing injected.
   */
-case class PostControllerComponents @Inject()(postActionBuilder: PostActionBuilder,
-                                              postResourceHandler: SummaryResourceHandler,
+case class PostControllerComponents @Inject()(postActionBuilder: CustomActionBuilder,
+                                              summaryResourceHandler: SummaryResourceHandler,
                                               actionBuilder: DefaultActionBuilder,
                                               parsers: PlayBodyParsers,
                                               messagesApi: MessagesApi,
@@ -99,7 +101,35 @@ case class PostControllerComponents @Inject()(postActionBuilder: PostActionBuild
 class PostBaseController @Inject()(pcc: PostControllerComponents) extends BaseController with RequestMarkerContext {
   override protected def controllerComponents: ControllerComponents = pcc
 
-  def PostAction: PostActionBuilder = pcc.postActionBuilder
+  def PostAction: CustomActionBuilder = pcc.postActionBuilder
 
-  def personSummaryResourceHandler: SummaryResourceHandler = pcc.postResourceHandler
+  def smmaryResourceHandler: SummaryResourceHandler = pcc.summaryResourceHandler
+}
+
+
+/**
+  * Packages up the component dependencies for the post controller.
+  *
+  * This is a good way to minimize the surface area exposed to the controller, so the
+  * controller only has to have one thing injected.
+  */
+case class ReadInfrastructureInfoControllerComponents @Inject()(postActionBuilder: CustomActionBuilder,
+                                                                readInfrastructureInfoHandler: ReadInfrastructureInfoResourceHandler,
+                                                                actionBuilder: DefaultActionBuilder,
+                                                                parsers: PlayBodyParsers,
+                                                                messagesApi: MessagesApi,
+                                                                langs: Langs,
+                                                                fileMimeTypes: FileMimeTypes,
+                                                                executionContext: scala.concurrent.ExecutionContext)
+  extends ControllerComponents
+
+/**
+  * Exposes actions and handler to the PostController by wiring the injected state into the base class.
+  */
+class ReadDBBaseController @Inject()(pcc: ReadInfrastructureInfoControllerComponents) extends BaseController with RequestMarkerContext {
+  override protected def controllerComponents: ControllerComponents = pcc
+
+  def PostAction: CustomActionBuilder = pcc.postActionBuilder
+
+  def readDBInfoHandler: ReadInfrastructureInfoResourceHandler = pcc.readInfrastructureInfoHandler
 }
