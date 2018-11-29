@@ -1,4 +1,4 @@
 package upload
 
-case class UploadVSForm(location: String, description: String, infra: String)
+case class UploadVSForm(infra: String, description: String, name: String, key: String)
 

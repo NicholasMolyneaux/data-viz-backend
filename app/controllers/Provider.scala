@@ -73,7 +73,7 @@ class CustomActionBuilder @Inject()(messagesApi: MessagesApi, playBodyParsers: P
         case GET | HEAD =>
           result.withHeaders("Cache-Control" -> s"max-age: 100", "Access-Control-Allow-Origin" -> "*")
         case other =>
-          result
+          result.withHeaders("Access-Control-Allow-Origin" -> "*")
       }
     }
   }
@@ -114,7 +114,7 @@ class PostBaseController @Inject()(pcc: PostControllerComponents) extends BaseCo
   * controller only has to have one thing injected.
   */
 case class ReadInfrastructureInfoControllerComponents @Inject()(postActionBuilder: CustomActionBuilder,
-                                                                readInfrastructureInfoHandler: ReadInfrastructureInfoResourceHandler,
+                                                                //readInfrastructureInfoHandler: ReadInfrastructureInfoResourceHandler,
                                                                 actionBuilder: DefaultActionBuilder,
                                                                 parsers: PlayBodyParsers,
                                                                 messagesApi: MessagesApi,
@@ -131,5 +131,33 @@ class ReadDBBaseController @Inject()(pcc: ReadInfrastructureInfoControllerCompon
 
   def PostAction: CustomActionBuilder = pcc.postActionBuilder
 
-  def readDBInfoHandler: ReadInfrastructureInfoResourceHandler = pcc.readInfrastructureInfoHandler
+  //def readDBInfoHandler: ReadInfrastructureInfoResourceHandler = pcc.readInfrastructureInfoHandler
 }
+
+/**
+  * Packages up the component dependencies for the post controller.
+  *
+  * This is a good way to minimize the surface area exposed to the controller, so the
+  * controller only has to have one thing injected.
+  */
+case class ReadTrajectoryControllerComponents @Inject()(postActionBuilder: CustomActionBuilder,
+                                                        //readTrajectoryHandler: ReadTrajectoryResourceHandler,
+                                                        actionBuilder: DefaultActionBuilder,
+                                                        parsers: PlayBodyParsers,
+                                                        messagesApi: MessagesApi,
+                                                        langs: Langs,
+                                                        fileMimeTypes: FileMimeTypes,
+                                                        executionContext: scala.concurrent.ExecutionContext)
+  extends ControllerComponents
+
+/**
+  * Exposes actions and handler to the PostController by wiring the injected state into the base class.
+  */
+class ReadTrajectoryBaseController @Inject()(pcc: ReadTrajectoryControllerComponents) extends BaseController with RequestMarkerContext {
+  override protected def controllerComponents: ControllerComponents = pcc
+
+  def PostAction: CustomActionBuilder = pcc.postActionBuilder
+
+  //def readTrajectoryHandler: ReadTrajectoryResourceHandler = pcc.readTrajectoryHandler
+}
+

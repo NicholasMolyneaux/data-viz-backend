@@ -5,7 +5,7 @@ import play.api.db.slick.DatabaseConfigProvider
 import slick.jdbc.JdbcProfile
 
 import scala.concurrent.{Future, ExecutionContext}
-
+/*
 
 //https://github.com/playframework/play-scala-slick-example/blob/2.6.x/app/models/PersonRepository.scala
 @Singleton
@@ -59,4 +59,4 @@ class TrackingDataDBRepo @Inject()(dbConfigProvider: DatabaseConfigProvider)(imp
   def list(): Future[Seq[PersonSummaryData]] = db.run {
     summary.result
   }
-}
+}*/

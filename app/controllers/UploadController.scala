@@ -35,18 +35,19 @@ class UploadController @Inject()(cc: MessagesControllerComponents, trackingDataR
 
   val form = Form(
     mapping(
-      "location" -> text,
+      "infra" -> text,
       "description" -> text,
-      "infra" -> text
+      "name" -> text,
+      "key" -> text
     )(UploadVSForm.apply)(UploadVSForm.unapply)
   )
 
   /**
     * Renders a start page.
     */
-  def index = Action { implicit request =>
+  /*def index = Action { implicit request =>
     Ok(views.html.index(form))
-  }
+  }*/
 
   type FilePartHandler[A] = FileInfo => Accumulator[ByteString, FilePart[A]]
 
@@ -76,7 +77,7 @@ class UploadController @Inject()(cc: MessagesControllerComponents, trackingDataR
     *
     * @return
     */
-  def upload = Action(parse.multipartFormData(handleFilePartAsFile)) { implicit request =>
+  def uploadTrajectory = Action(parse.multipartFormData(handleFilePartAsFile)) { implicit request =>
 
     // collect form input if no error is produced
     val formInput: Option[UploadVSForm] = form.bindFromRequest.fold(
@@ -87,30 +88,38 @@ class UploadController @Inject()(cc: MessagesControllerComponents, trackingDataR
       spec => Some(spec)
     )
 
-    request.body.file("myFile").get match {
-      case FilePart(key, filename, contentType, file) => {
-        if (contentType.get == "application/json") {
-          logger.info(s"key = ${key}, filename = ${filename}, contentType = ${contentType}, file = $file")
-          val destDir: String = config.get[String]("data.upload.path")
-          logger.info(s"size of uploaded file= ${Files.size(file.toPath)}")
-          Files.move(file.toPath, Paths.get(destDir + file.getName + ".json"))
-          logger.info(s"file moved to ${destDir + formInput.get.infra + "__" + file.getName}")
-          Ok("File uploaded successfully !")
-        } else {
-          BadRequest("Wrong file type !")
+    if (formInput.get.key == config.get[String]("data.uploadkey.traj")) {
+      trackingDataRepo.insertIntoTrajectoriesList(formInput.get.infra, formInput.get.name, formInput.get.description)
+
+      request.body.file("traj").get match {
+        case FilePart(key, filename, contentType, file) => {
+          if (contentType.get == "text/csv") {
+            logger.info(s"key = ${key}, filename = ${filename}, contentType = ${contentType}, file = $file")
+            val destDir: String = config.get[String]("data.upload.path") + "traj/"
+            logger.info(s"size of uploaded file= ${Files.size(file.toPath)}")
+            Files.move(file.toPath, Paths.get(destDir + formInput.get.infra + "__" + formInput.get.name + "__" + file.getName + ".csv"))
+            logger.info(s"file moved to ${destDir + formInput.get.infra + "__" + formInput.get.name + "__" + file.getName} + .csv")
+            Ok("File uploaded successfully !")
+          } else {
+            BadRequest("Wrong file type !")
+          }
+        }
+        case _ => {
+          logger.warn("File not uploaded !")
+          BadRequest("File not uploaded !")
         }
       }
-      case _ => {
-        logger.warn("File not uploaded !")
-        BadRequest("File not uploaded !")
-      }
+    } else {
+      BadRequest("Key is wrong !")
     }
   }
+
 
   val formInfra = Form(
     mapping(
       "location" -> text,
       "description" -> text,
+      "key" -> text
     )(UploadInfraForm.apply)(UploadInfraForm.unapply)
   )
 
@@ -124,47 +133,49 @@ class UploadController @Inject()(cc: MessagesControllerComponents, trackingDataR
       },
       spec => Some(spec)
     )
-    logger.warn("Location: " + formInput.get.location + ", descri: " + formInput.get.description)
-    trackingDataRepo.createInfraIfNotExisting(formInput.get.location, formInput.get.description)
 
-    trackingDataRepo.schemaNameOld = formInput.get.location
+    if (formInput.get.key == config.get[String]("data.uploadkey.infra")) {
+      trackingDataRepo.createInfraIfNotExisting(formInput.get.location, formInput.get.description)
 
-    request.body.file("walls").get match {
-      case FilePart(key, filename, contentType, file) => {
-        if (contentType.get == "application/json") {
-          logger.info(s"key = ${key}, filename = ${filename}, contentType = ${contentType}, file = $file")
-          val destDir: String = config.get[String]("data.upload.path") + "infra/"
-          logger.info(s"size of uploaded file= ${Files.size(file.toPath)}")
-          Files.move(file.toPath, Paths.get(destDir + formInput.get.location + "__" + "walls__" + file.getName + ".json"))
-          logger.info(s"file moved to ${destDir + formInput.get.location + "__" + "walls__" + file.getName}")
-          Ok("File uploaded successfully !")
-        } else {
-          BadRequest("Wrong file type !")
+      request.body.file("walls").get match {
+        case FilePart(key, filename, contentType, file) => {
+          if (contentType.get == "application/json") {
+            logger.info(s"key = ${key}, filename = ${filename}, contentType = ${contentType}, file = $file")
+            val destDir: String = config.get[String]("data.upload.path") + "infra/"
+            logger.info(s"size of uploaded file= ${Files.size(file.toPath)}")
+            Files.move(file.toPath, Paths.get(destDir + formInput.get.location + "__" + "walls__" + file.getName + ".json"))
+            logger.info(s"file moved to ${destDir + formInput.get.location + "__" + "walls__" + file.getName}")
+            Ok("File uploaded successfully !")
+          } else {
+            BadRequest("Wrong file type !")
+          }
+        }
+        case _ => {
+          logger.warn("File not uploaded !")
+          BadRequest("File not uploaded !")
         }
       }
-      case _ => {
-        logger.warn("File not uploaded !")
-        BadRequest("File not uploaded !")
-      }
-    }
 
-    request.body.file("graph").get match {
-      case FilePart(key, filename, contentType, file) => {
-        if (contentType.get == "application/json") {
-          logger.info(s"key = ${key}, filename = ${filename}, contentType = ${contentType}, file = $file")
-          val destDir: String = config.get[String]("data.upload.path") + "infra/"
-          logger.info(s"size of uploaded file= ${Files.size(file.toPath)}")
-          Files.move(file.toPath, Paths.get(destDir + formInput.get.location + "__" + "graph__" + file.getName + ".json"))
-          logger.info(s"file moved to ${destDir + formInput.get.location + "__" + "graph__" + file.getName}")
-          Ok("File uploaded successfully !")
-        } else {
-          BadRequest("Wrong file type !")
+      request.body.file("graph").get match {
+        case FilePart(key, filename, contentType, file) => {
+          if (contentType.get == "application/json") {
+            logger.info(s"key = ${key}, filename = ${filename}, contentType = ${contentType}, file = $file")
+            val destDir: String = config.get[String]("data.upload.path") + "infra/"
+            logger.info(s"size of uploaded file= ${Files.size(file.toPath)}")
+            Files.move(file.toPath, Paths.get(destDir + formInput.get.location + "__" + "graph__" + file.getName + ".json"))
+            logger.info(s"file moved to ${destDir + formInput.get.location + "__" + "graph__" + file.getName}")
+            Ok("File uploaded successfully !")
+          } else {
+            BadRequest("Wrong file type !")
+          }
+        }
+        case _ => {
+          logger.warn("File not uploaded !")
+          BadRequest("File not uploaded !")
         }
       }
-      case _ => {
-        logger.warn("File not uploaded !")
-        BadRequest("File not uploaded !")
-      }
+    } else {
+      BadRequest("Key is wrong !")
     }
   }
 }

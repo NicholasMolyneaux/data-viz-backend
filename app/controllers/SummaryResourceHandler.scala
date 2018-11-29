@@ -11,7 +11,7 @@ import scala.concurrent.{ExecutionContext, Future}
 /**
   * DTO for displaying post information.
   */
-case class PersonSummaryResource(id: Long, origin: String, destination: String, entryTime: Double, exitTime: Double, link: String)
+case class PersonSummaryResource(id: String, origin: String, destination: String, entryTime: Double, exitTime: Double, link: String)
 
 object PersonSummaryResource {
 
@@ -22,11 +22,10 @@ object PersonSummaryResource {
     def writes(summary: PersonSummaryResource): JsValue = {
       Json.obj(
         "id" -> summary.id,
-        "origin" -> summary.origin,
-        "destination" -> summary.destination,
-        "entryTime" -> summary.entryTime,
-        "exitTime" -> summary.exitTime,
-        "link" -> summary.link
+        "o" -> summary.origin,
+        "d" -> summary.destination,
+        "en" -> summary.entryTime,
+        "ex" -> summary.exitTime
       )
     }
   }
@@ -38,8 +37,8 @@ object PersonSummaryResource {
 class SummaryResourceHandler @Inject()(routerProvider: Provider[SummaryDataRouter],
                                        trackingDataRepo: TrackingDataRepository)(implicit ec: ExecutionContext) {
 
-  def lookup(id: Long)(implicit mc: MarkerContext): Future[Option[PersonSummaryResource]] = {
-    val summaryFuture = trackingDataRepo.get(id)
+  def lookup(schema: String, name: String, id: String)(implicit mc: MarkerContext): Future[Option[PersonSummaryResource]] = {
+    val summaryFuture = trackingDataRepo.getPedSummary(schema, name,  id)
     summaryFuture.map { maybePostData =>
       maybePostData.map { summaryData =>
         createPostResource(summaryData)
@@ -47,8 +46,8 @@ class SummaryResourceHandler @Inject()(routerProvider: Provider[SummaryDataRoute
     }
   }
 
-  def lookup(ids: Vector[Long])(implicit mc: MarkerContext): Future[Iterable[PersonSummaryResource]] = {
-    val summaryFuture = trackingDataRepo.get(ids)
+  def lookup(schema: String, name: String, ids: Vector[String])(implicit mc: MarkerContext): Future[Iterable[PersonSummaryResource]] = {
+    val summaryFuture = trackingDataRepo.getPedListSummary(schema, name, ids)
     summaryFuture.map { maybePostData =>
       maybePostData.map { summaryData => createPostResource(summaryData)
       }
@@ -56,8 +55,8 @@ class SummaryResourceHandler @Inject()(routerProvider: Provider[SummaryDataRoute
   }
 
 
-  def find(implicit mc: MarkerContext): Future[Iterable[PersonSummaryResource]] = {
-    trackingDataRepo.list().map { summaryDataList =>
+  def find(schema: String, name: String)(implicit mc: MarkerContext): Future[Iterable[PersonSummaryResource]] = {
+    trackingDataRepo.getPedListSummary(schema, name).map { summaryDataList =>
       summaryDataList.map(summaryData => createPostResource(summaryData))
     }
   }

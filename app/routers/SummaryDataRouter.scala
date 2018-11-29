@@ -12,23 +12,24 @@ import play.api.routing.sird._
 class SummaryDataRouter @Inject()(controller: SummaryController) extends SimpleRouter {
   val prefix = "/api"
 
-  def link(id: Long): String = {
+  def link(id: String): String = {
     import com.netaporter.uri.dsl._
     val url = prefix / id.toString
     url.toString()
   }
 
   override def routes: Routes = {
-    case GET(p"/") =>
-      controller.index
 
-    case GET(p"/$id") => {
+    /*case GET(p"/id/$infra/$name/$id") => {
       if (id.contains(",")) {
-        controller.show(id.split(",").map(_.toLong).toVector)
+        controller.showList(infra, name, id)
       } else {
-        controller.show(id.toLong)
+        controller.show(infra, name, id)
       }
-    }
+    }*/
+
+    case GET(p"/$infra/$name") =>
+      controller.index(infra, name)
 
   }
 

@@ -2,23 +2,32 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-GET     /                           controllers.UploadController.index
+GET     /summary/:infra/:name/:id   controllers.SummaryController.show(infra: String, name: String, id: String)
+GET     /summary/:infra/:name       controllers.SummaryController.index(infra: String, name: String)
 
-->      /api                        routers.SummaryDataRouter
-
-
-+ nocsrf
-POST    /upload                     controllers.UploadController.upload
-
-+ nocsrf
-POST    /uploadInfrastructure       controllers.UploadController.uploadInfrastructure
-
-GET     /db/infrastructures         controllers.ReadInfrastructureInfoController.getInfraList
-GET     /db/deleteinfra/:infra      controllers.ReadInfrastructureInfoController.deleteInfra(infra: String)
+GET     /infralist                  controllers.ReadInfrastructureInfoController.getInfraList
 
 GET     /infra/walls/:name          controllers.ReadInfrastructureDataController.getWallCollection(name: String)
 GET     /infra/zones/:name          controllers.ReadInfrastructureDataController.getZoneCollection(name: String)
+GET     /infra/gates/:name          controllers.ReadInfrastructureDataController.getGateCollection(name: String)
+GET     /infra/zonesnames/:name     controllers.ReadInfrastructureDataController.getZoneNames(name: String)
+
+GET     /trajlist/:infra                            controllers.ReadTrajectoryController.getListTrajectories(infra: String)
+GET     /idlist/:infra/:traj                        controllers.ReadTrajectoryController.getListPedIDs(infra: String, traj: String)
+GET     /trajectoriesbyid/:infra/:traj              controllers.ReadTrajectoryController.getTrajectoriesByID(infra: String, traj: String)
+GET     /trajectoriesbyid/:infra/:traj/:ids         controllers.ReadTrajectoryController.getTrajectoriesByIDWithFilter(infra: String, traj: String, ids: String)
+GET     /trajectoriesbytime/:infra/:traj            controllers.ReadTrajectoryController.getTrajectoriesByTime(infra: String, traj: String)
+GET     /trajectoriesbytime/:infra/:traj/lb/:lb     controllers.ReadTrajectoryController.getTrajectoriesByTimeLB(infra: String, traj: String, lb: Double)
+GET     /trajectoriesbytime/:infra/:traj/ub/:ub     controllers.ReadTrajectoryController.getTrajectoriesByTimeUB(infra: String, traj: String, ub: Double)
+GET     /trajectoriesbytime/:infra/:traj/lb/:lb/ub/:ub    controllers.ReadTrajectoryController.getTrajectoriesByTimeLBUB(infra: String, traj: String, lb: Double, ub: Double)
+
++ nocsrf
+POST    /uploadtrajectory                   controllers.UploadController.uploadTrajectory
+
++ nocsrf
+POST    /uploadinfrastructure               controllers.UploadController.uploadInfrastructure
+
+GET     /deleteinfra/:pwd/:infra                 controllers.ReadInfrastructureInfoController.deleteInfra(infra: String, pwd: String)
+GET     /deletetrajectory/:pwd/:infra/:traj      controllers.ReadInfrastructureInfoController.deleteTrajectory(infra: String, traj: String, pwd: String)
 
 
-# Map static resources from the /public folder to the /assets URL path
-GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)

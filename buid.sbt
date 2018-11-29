@@ -11,8 +11,10 @@ def gatlingVersion(scalaBinVer: String): String = scalaBinVer match {
   case "2.12" => "2.3.1"
 }
 
+libraryDependencies += "com.github.NicholasMolyneaux" %% "scala-custom" % "1.1.2"
+
 //libraryDependencies += "org.postgresql" % "postgresql" % "9.4.1212"
-libraryDependencies += "org.postgresql" % "postgresql" % "9.2-1004-jdbc41"
+libraryDependencies += "org.postgresql" % "postgresql" % "9.4-1206-jdbc42"
 libraryDependencies += "com.typesafe.play" %% "play-slick" % "3.0.3"
 //libraryDependencies += "com.typesafe.play" %% "play-slick-evolutions" % "3.0.3"
 libraryDependencies += guice
@@ -26,6 +28,8 @@ libraryDependencies += "net.codingwell" %% "scala-guice" % "4.2.1"
 libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % Test
 libraryDependencies += "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion(scalaBinaryVersion.value) % Test
 libraryDependencies += "io.gatling" % "gatling-test-framework" % gatlingVersion(scalaBinaryVersion.value) % Test
+libraryDependencies += "com.github.tminglei" %% "slick-pg" % "0.16.3"
+libraryDependencies += "com.github.tminglei" %% "slick-pg_play-json" % "0.16.3"
 
 // The Play project itself
 lazy val root = (project in file("."))

@@ -1,63 +1,24 @@
 package processing
 
-import akka.actor.Actor
-import com.google.inject.Inject
-import play.api.{Configuration, Logger}
-import javax.inject.Singleton
+import java.math.MathContext
+import java.math.RoundingMode.{CEILING, FLOOR}
 import java.nio.file.{DirectoryStream, Files, Path, Paths}
 
-import models.{TrackingDataRepository, ZoneData}
+import akka.actor.Actor
+import com.google.inject.Inject
+import javax.inject.Singleton
+import models.{PersonSummaryData, TrackingDataRepository, ZoneData}
 import play.api.libs.functional.syntax._
-import play.api.libs.json.Reads
-import play.api.libs.json._
+import play.api.libs.json.{Reads, _}
+import play.api.{Configuration, Logger}
 
 import scala.collection.JavaConversions._
+import scala.concurrent.ExecutionContext
 import scala.io.BufferedSource
+import scala.util.{Failure, Success}
 
 @Singleton
-class ProcessorActor @Inject()(trackingDataRepo: TrackingDataRepository, config: Configuration) extends Actor {
-
-  val uploadDir: String = config.get[String]("data.upload.path")
-  val processedDir: String = config.get[String]("data.processed.path")
-
-  def receive = {
-    case "process-traj" => updateDirContents()
-    case "process-infra" => updateInfraContents
-    case _ => Logger.error("scheduler key not recognized")
-  }
-
-  def updateDirContents(): Unit = {
-    Logger.error("updates running")
-    val filesToProcess: Vector[Path] = Files.newDirectoryStream(Paths.get(uploadDir + "traj/"), "*.json").toVector
-    val filesProcessing: Vector[Path] = Files.newDirectoryStream(Paths.get(uploadDir + "traj/"), "*.processing").toVector
-
-    // only process one file at a time.
-    if (filesToProcess.nonEmpty && filesProcessing.isEmpty) {
-      Logger.warn("Started processing file: " + filesToProcess.head.getFileName.toString)
-      processTrackingData(filesToProcess.head)
-    } else {
-      Logger.warn("No processing to start.")
-    }
-  }
-
-  def processTrackingData(file: Path): Unit = {
-    val tmpFileName: String = file.getFileName.toString + ".processing"
-    val infraName: String = file.getFileName.toString.split("__", 2).head
-    Files.move(file, file.resolveSibling(file.getFileName.toString + ".processing"))
-
-    /*
-    check if infra exists
-    if yes
-      insert new schema for this data set
-        summary, OD, traj
-    if no
-      create new infra then go to "yes"
-     */
-
-    Thread.sleep(5000)
-    Files.move(Paths.get(file.getParent + "/" + tmpFileName), Paths.get(processedDir + "infra/" + file.getFileName))
-  }
-
+class InfrastructureProcessing @Inject()(trackingDataRepo: TrackingDataRepository, config: Configuration)(implicit ec: ExecutionContext) extends Actor {
   // ******************************************************************************************
   //                   CASE CLASSES AND IMPLICIT CONVERSIONS FOR CONTINUOUS SPACE
   // ******************************************************************************************
@@ -82,13 +43,6 @@ class ProcessorActor @Inject()(trackingDataRepo: TrackingDataRepository, config:
       (JsPath \ "y2").read[Double] and
       (JsPath \ "type").read[Int]
     ) (Wall_JSON.apply _)
-
-  /** For reading JSON files storing the specs
-    *
-    * @param location    main location
-    * @param subLocation subarea
-    * @param walls       vector storing the walls
-    */
 
   case class Vertex_JSON(name: String, x1: Double, y1: Double, x2: Double, y2: Double, x3: Double, y3: Double, x4: Double, y4: Double, OD: Boolean)
 
@@ -119,14 +73,33 @@ class ProcessorActor @Inject()(trackingDataRepo: TrackingDataRepository, config:
       (JsPath \ "walls").read[Vector[Wall_JSON]]
     ) (ContinuousSpaceParser.apply _)
 
+  case class FlowGates_JSON(o: String, d: String, start_pos_x: Double, start_pos_y: Double, end_pos_x: Double, end_pos_y: Double, area: String, funcForm: Option[String], funcParam: Option[Vector[Double]])
+
+  /**
+    * Reads the JSON structure into a [[FlowGates_JSON]] object. No validation on arguments is done.
+    */
+  implicit val FlowGates_JSONReads: Reads[FlowGates_JSON] = (
+    (JsPath \ "o").read[String] and
+      (JsPath \ "d").read[String] and
+      (JsPath \ "start_pos_x").read[Double] and
+      (JsPath \ "start_pos_y").read[Double] and
+      (JsPath \ "end_pos_x").read[Double] and
+      (JsPath \ "end_pos_y").read[Double] and
+      (JsPath \ "controlled_area").read[String] and
+      (JsPath \ "functional_form").readNullable[String] and
+      (JsPath \ "functional_parameters").readNullable[Vector[Double]]
+    ) (FlowGates_JSON.apply _)
+
   case class GraphParser(location: String,
                          subLocation: String,
-                         zones: Vector[Vertex_JSON])
+                         zones: Vector[Vertex_JSON],
+                         gates: Vector[FlowGates_JSON])
 
   implicit val GraphParserReads: Reads[GraphParser] = (
     (JsPath \ "location").read[String] and
       (JsPath \ "sublocation").read[String] and
-      (JsPath \ "nodes").read[Vector[Vertex_JSON]]
+      (JsPath \ "nodes").read[Vector[Vertex_JSON]] and
+      (JsPath \ "flow_gates").read[Vector[FlowGates_JSON]]
     ) (GraphParser.apply _)
 
   class ReadContinuousSpace(file: String) {
@@ -136,13 +109,19 @@ class ProcessorActor @Inject()(trackingDataRepo: TrackingDataRepository, config:
       val input: JsValue = Json.parse(try source.mkString finally source.close)
 
       input.validate[ContinuousSpaceParser] match {
-        case s: JsSuccess[ContinuousSpaceParser] => s.get.walls.map(w => (w.x1, w.y1, w.x2, w.y2, w.wallType))
-        case e: JsError => throw new Error("Error while parsing SF infrastructure file: " + file + ", JSON error: " + JsError.toJson(e).toString())
+        case s: JsSuccess[ContinuousSpaceParser] => {
+          source.close()
+          s.get.walls.map(w => (w.x1, w.y1, w.x2, w.y2, w.wallType))
+        }
+        case e: JsError => {
+          source.close()
+          throw new Error("Error while parsing SF infrastructure file: " + file + ", JSON error: " + JsError.toJson(e).toString())
+        }
       }
     }
   }
 
-  def ReadGraph(file: String): Iterable[(String, Double, Double, Double, Double, Double, Double, Double, Double, Boolean)] = {
+  def ReadGraph(file: String): (Iterable[(String, Double, Double, Double, Double, Double, Double, Double, Double, Boolean)], Iterable[(Double, Double, Double, Double)]) = {
 
     val source: BufferedSource = scala.io.Source.fromFile(file)
     val input: JsValue = Json.parse(try source.mkString finally source.close)
@@ -151,24 +130,42 @@ class ProcessorActor @Inject()(trackingDataRepo: TrackingDataRepository, config:
     input.validate[GraphParser] match {
       case s: JsSuccess[GraphParser] => {
         //Logger.warn("Parsing succesful")
-        s.get.zones.map(z => (z.name, z.x1, z.y1, z.x2, z.y2, z.x3, z.y3, z.x4, z.y4, z.OD))
+        source.close()
+        (
+          s.get.zones.map(z => (z.name, z.x1, z.y1, z.x2, z.y2, z.x3, z.y3, z.x4, z.y4, z.OD)),
+          s.get.gates.map(g => (g.start_pos_x, g.start_pos_y, g.end_pos_x, g.end_pos_y))
+        )
       }
       case e: JsError => {
         //*Logger.warn("Parsing unsuccesful")
+        source.close()
         throw new Error("Error while parsing SF infrastructure file: , JSON error: " + JsError.toJson(e).toString())
       }
     }
   }
 
+  val uploadDir: String = config.get[String]("data.upload.path")
+  val processedDir: String = config.get[String]("data.processed.path")
+
+
+  def receive = {
+    case "process-infra" => updateInfraContents
+    case _ => Logger.error("scheduler key not recognized")
+  }
+
 
   type Place = String
 
-  def updateInfraContents: Unit = {
+  def updateInfraContents(): Unit = {
     Logger.warn("processing infra")
 
+    val fileStreamToProcess: DirectoryStream[Path] = Files.newDirectoryStream(Paths.get(uploadDir + "infra/"), "*.json")
+    val fileStreamProcessing: DirectoryStream[Path] = Files.newDirectoryStream(Paths.get(uploadDir + "infra/"), "*.processing")
 
-    val filesToProcess: Iterable[Path] = Files.newDirectoryStream(Paths.get(uploadDir + "infra/"), "*.json").toVector
-    val filesProcessing: Vector[Path] = Files.newDirectoryStream(Paths.get(uploadDir + "infra/"), "*.processing").toVector
+    val filesToProcess: Vector[Path] = fileStreamToProcess.toVector
+    val filesProcessing: Vector[Path] = fileStreamProcessing.toVector
+    fileStreamToProcess.close()
+    fileStreamProcessing.close()
 
     if (filesToProcess.nonEmpty && filesProcessing.isEmpty) {
       Logger.warn("inserting infra: " + filesToProcess.mkString(", "))
@@ -177,7 +174,7 @@ class ProcessorActor @Inject()(trackingDataRepo: TrackingDataRepository, config:
       val filesByPlace: Map[Place, Iterable[(Path, Array[String])]] = filesToProcess.map(fn => (fn, fn.getFileName.toString.split("__", 3))).groupBy(_._2(0))
       filesByPlace.foreach(place => {
 
-        trackingDataRepo.schemaNameOld = place._1
+        //trackingDataRepo.schemaNameOld = place._1
 
         val wallFile: (Path, Array[String]) = place._2.find(d => d._2(1) == "walls").get
         val graphFile: (Path, Array[String]) = place._2.find(d => d._2(1) == "graph").get
@@ -193,7 +190,9 @@ class ProcessorActor @Inject()(trackingDataRepo: TrackingDataRepository, config:
         Logger.warn("Finished processing walls file. Starting processing graph.")
         val graphData = ReadGraph(uploadDir + "infra/" + graphFileTmp.getFileName.toString)
         Logger.warn("Finished parsing graph file again.")
-        trackingDataRepo.createODZonesTable(place._1, graphData)
+        trackingDataRepo.createODZonesTable(place._1, graphData._1)
+        trackingDataRepo.createGatesTable(place._1, graphData._2)
+
         Files.move(Paths.get(wallFile._1.getParent + "/" + wallFileTmp), Paths.get(processedDir + "infra/" + wallFile._1.getFileName))
         Files.move(Paths.get(graphFile._1.getParent + "/" + graphFileTmp), Paths.get(processedDir + "infra/" + graphFile._1.getFileName))
       })

@@ -1,7 +1,7 @@
 package controllers
 
 import javax.inject.Inject
-import models.{TrackingDataRepository, WallData, ZoneData}
+import models.{TrackingDataRepository, TrackingDataRepositoryImpl, WallData, ZoneData}
 import play.api.{Logger, MarkerContext}
 import play.api.libs.json.{JsValue, Json, Writes}
 import play.api.mvc.{Action, AnyContent}
@@ -15,11 +15,18 @@ class ReadInfrastructureDataController @Inject()(cc: ReadInfrastructureInfoContr
 
 
   def getWallCollection(infra: String): Action[AnyContent] = Action.async { implicit request =>
-    trackingDataRepo.getWalls(infra).map(d => Ok(Json.toJson(WallContainer(d))).withHeaders(("Access-Control-Allow-Origin", "*")))
+    trackingDataRepo.getWalls(infra).map(d => Ok(Json.toJson(WallContainer(d))))
   }
 
   def getZoneCollection(infra: String): Action[AnyContent] = Action.async { implicit request =>
-    trackingDataRepo.getZones(infra).map(d => Ok(Json.toJson(ZoneContainer(d))).withHeaders(("Access-Control-Allow-Origin", "*")))
+    trackingDataRepo.getZones(infra).map(d => Ok(Json.toJson(ZoneContainer(d))))
+  }
+  def getZoneNames(infra: String): Action[AnyContent] = Action.async { implicit request =>
+    trackingDataRepo.getZones(infra).map(d => Ok(Json.toJson(d.map(_.name))))
+  }
+
+  def getGateCollection(infra: String): Action[AnyContent] = Action.async { implicit request =>
+    trackingDataRepo.getGates(infra).map(d => Ok(Json.toJson(GateContainer(d))))
   }
 }
 
@@ -42,13 +49,25 @@ object ZoneContainer {
         "y1" -> data.ay.toString,
         "x2" -> data.bx.toString,
         "y2" -> data.by.toString,
-        "x3" -> data.ax.toString,
-        "y3" -> data.ay.toString,
-        "x4" -> data.bx.toString,
-        "y4" -> data.by.toString,
+        "x3" -> data.cx.toString,
+        "y3" -> data.cy.toString,
+        "x4" -> data.dx.toString,
+        "y4" -> data.dy.toString,
         "isod" -> data.isOD.toString,
         "id" -> 0.toString)))
     }
   }
 }
 
+case class GateContainer(data: Iterable[(Double, Double, Double, Double)])
+object GateContainer {
+  implicit val implicitWallDataWrites: Writes[GateContainer] = new Writes[GateContainer] {
+    def writes(d: GateContainer): JsValue = {
+      Json.toJson(d.data.map(data => Map(
+        "x1" -> data._1.toString,
+        "y1" -> data._2.toString,
+        "x2" -> data._3.toString,
+        "y2" -> data._4.toString)))
+    }
+  }
+}

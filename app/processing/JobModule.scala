@@ -5,7 +5,10 @@ import play.api.libs.concurrent.AkkaGuiceSupport
 
 class JobModule extends AbstractModule with AkkaGuiceSupport {
   override def configure() = {
-    bindActor[ProcessorActor]("scheduler-actor")
-    bind(classOf[Scheduler]).asEagerSingleton()
+    bindActor[TrajectoryProcessing]("processor-traj")
+    bindActor[InfrastructureProcessing]("processor-infra")
+
+    bind(classOf[SchedulerInfra]).asEagerSingleton()
+    bind(classOf[SchedulerTraj]).asEagerSingleton()
   }
 }

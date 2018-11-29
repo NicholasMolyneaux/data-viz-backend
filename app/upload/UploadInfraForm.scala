@@ -1,3 +1,3 @@
 package upload
 
-case class UploadInfraForm(location: String, description: String)
+case class UploadInfraForm(location: String, description: String, key: String)
