@@ -7,7 +7,7 @@ import java.nio.file.{DirectoryStream, Files, Path, Paths}
 import akka.actor.Actor
 import com.google.inject.Inject
 import javax.inject.Singleton
-import models.{PersonSummaryData, TrackingDataRepository, ZoneData}
+import models.{MonitoredArea, PersonSummaryData, TrackingDataRepository, ZoneData}
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Reads, _}
 import play.api.{Configuration, Logger}
@@ -90,16 +90,38 @@ class InfrastructureProcessing @Inject()(trackingDataRepo: TrackingDataRepositor
       (JsPath \ "functional_parameters").readNullable[Vector[Double]]
     ) (FlowGates_JSON.apply _)
 
+
+  case class MonitoredAreas_JSON(name: String, x1: Double, y1: Double, x2: Double, y2: Double, x3: Double, y3: Double, x4: Double, y4: Double, targetDensity: Double)
+  /**
+    * Reads a JSON structure into a [[Vertex_JSON]] object. No validation on the arguments is done.
+    */
+  implicit val MonitoredAreas_JSON_Reads: Reads[MonitoredAreas_JSON] = (
+    (JsPath \ "name").read[String] and
+      (JsPath \ "x1").read[Double] and
+      (JsPath \ "y1").read[Double] and
+      (JsPath \ "x2").read[Double] and
+      (JsPath \ "y2").read[Double] and
+      (JsPath \ "x3").read[Double] and
+      (JsPath \ "y3").read[Double] and
+      (JsPath \ "x4").read[Double] and
+      (JsPath \ "y4").read[Double] and
+      (JsPath \ "target_density").read[Double]
+    ) (MonitoredAreas_JSON.apply _)
+
+
   case class GraphParser(location: String,
                          subLocation: String,
                          zones: Vector[Vertex_JSON],
-                         gates: Vector[FlowGates_JSON])
+                         gates: Vector[FlowGates_JSON],
+                         monitoredAreas: Vector[MonitoredAreas_JSON]
+                        )
 
   implicit val GraphParserReads: Reads[GraphParser] = (
     (JsPath \ "location").read[String] and
       (JsPath \ "sublocation").read[String] and
       (JsPath \ "nodes").read[Vector[Vertex_JSON]] and
-      (JsPath \ "flow_gates").read[Vector[FlowGates_JSON]]
+      (JsPath \ "flow_gates").read[Vector[FlowGates_JSON]] and
+      (JsPath \ "controlled_areas").read[Vector[MonitoredAreas_JSON]]
     ) (GraphParser.apply _)
 
   class ReadContinuousSpace(file: String) {
@@ -121,7 +143,7 @@ class InfrastructureProcessing @Inject()(trackingDataRepo: TrackingDataRepositor
     }
   }
 
-  def ReadGraph(file: String): (Iterable[(String, Double, Double, Double, Double, Double, Double, Double, Double, Boolean)], Iterable[(Double, Double, Double, Double)]) = {
+  def ReadGraph(file: String): (Iterable[(String, Double, Double, Double, Double, Double, Double, Double, Double, Boolean)], Iterable[(Double, Double, Double, Double)], Vector[MonitoredAreas_JSON]) = {
 
     val source: BufferedSource = scala.io.Source.fromFile(file)
     val input: JsValue = Json.parse(try source.mkString finally source.close)
@@ -133,7 +155,8 @@ class InfrastructureProcessing @Inject()(trackingDataRepo: TrackingDataRepositor
         source.close()
         (
           s.get.zones.map(z => (z.name, z.x1, z.y1, z.x2, z.y2, z.x3, z.y3, z.x4, z.y4, z.OD)),
-          s.get.gates.map(g => (g.start_pos_x, g.start_pos_y, g.end_pos_x, g.end_pos_y))
+          s.get.gates.map(g => (g.start_pos_x, g.start_pos_y, g.end_pos_x, g.end_pos_y)),
+          s.get.monitoredAreas
         )
       }
       case e: JsError => {
@@ -192,6 +215,7 @@ class InfrastructureProcessing @Inject()(trackingDataRepo: TrackingDataRepositor
         Logger.warn("Finished parsing graph file again.")
         trackingDataRepo.createODZonesTable(place._1, graphData._1)
         trackingDataRepo.createGatesTable(place._1, graphData._2)
+        trackingDataRepo.createMonitoredAreasTable(place._1, graphData._3.map(ma => MonitoredArea(ma.name, ma.x1, ma.y1, ma.x2, ma.y2, ma.x3, ma.y3, ma.x4, ma.y4)))
 
         Files.move(Paths.get(wallFile._1.getParent + "/" + wallFileTmp), Paths.get(processedDir + "infra/" + wallFile._1.getFileName))
         Files.move(Paths.get(graphFile._1.getParent + "/" + graphFileTmp), Paths.get(processedDir + "infra/" + graphFile._1.getFileName))

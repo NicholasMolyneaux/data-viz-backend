@@ -10,7 +10,10 @@ GET     /infralist                  controllers.ReadInfrastructureInfoController
 GET     /infra/walls/:name          controllers.ReadInfrastructureDataController.getWallCollection(name: String)
 GET     /infra/zones/:name          controllers.ReadInfrastructureDataController.getZoneCollection(name: String)
 GET     /infra/gates/:name          controllers.ReadInfrastructureDataController.getGateCollection(name: String)
+GET     /infra/monitoredareas/:name controllers.ReadInfrastructureDataController.getMonitoredAreasCollection(name: String)
+
 GET     /infra/zonesnames/:name     controllers.ReadInfrastructureDataController.getZoneNames(name: String)
+
 
 GET     /trajlist/:infra                            controllers.ReadTrajectoryController.getListTrajectories(infra: String)
 GET     /idlist/:infra/:traj                        controllers.ReadTrajectoryController.getListPedIDs(infra: String, traj: String)

@@ -44,6 +44,8 @@ trait TrackingDataRepository {
 
   def insertRowIntoTrajTable(schema: String, name: String, row: TrajRowData): Future[Unit]
 
+  def insertTrajTableFile(schema: String, name: String, file: String): Future[Unit]
+
   def getTrajectories(infra: String, traj: String): Future[Iterable[TrajRowData]]
 
   def insertRowIntoPedSummaryTable(schema: String, name: String, data: PersonSummaryData): Future[Unit]
@@ -64,7 +66,11 @@ trait TrackingDataRepository {
 
   def getGates(infra: String)(implicit mc: MarkerContext): Future[Iterable[(Double, Double, Double, Double)]]
 
+  def getMonitoredArea(infra: String)(implicit mc: MarkerContext): Future[Iterable[MonitoredArea]]
+
   def createGatesTable(infra: String, zones: Iterable[(Double, Double, Double, Double)])(implicit mc: MarkerContext): Future[Unit]
+
+  def createMonitoredAreasTable(infra: String, zones: Iterable[MonitoredArea])(implicit mc: MarkerContext): Future[Unit]
 
   def groupTrajectoriesByID(infra: String, traj: String): Future[Unit]
 
@@ -237,6 +243,52 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
       * apply and unapply methods.
       */
     def * = (x1, y1, x2, y2)
+  }
+
+  private class MonitoredAreasTable(tag: Tag, schema: Option[String]) extends Table[MonitoredArea](tag, schema, "monitoredareas") {
+
+
+    /** The ID column, which is the primary key, and auto incremented */
+    def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
+
+    def name = column[String]("name")
+
+
+    /** The origin zone column */
+    def x1 = column[Double]("x1")
+
+    /** The destinatoion zone column */
+    def y1 = column[Double]("y1")
+
+    /** The entry time column */
+    def x2 = column[Double]("x2")
+
+    /** The exit time column */
+    def y2 = column[Double]("y2")
+
+    /** The origin zone column */
+    def x3 = column[Double]("x3")
+
+    /** The destinatoion zone column */
+    def y3 = column[Double]("y3")
+
+    /** The entry time column */
+    def x4 = column[Double]("x4")
+
+    /** The exit time column */
+    def y4 = column[Double]("y4")
+
+
+
+    /**
+      * This is the tables default "projection".
+      *
+      * It defines how the columns are converted to and from the Person object.
+      *
+      * In this case, we are simply passing the id, name and page parameters to the Person case classes
+      * apply and unapply methods.
+      */
+    def * = (name, x1, y1, x2, y2, x3, y3, x4, y4, id) <> ((MonitoredArea.apply _).tupled, MonitoredArea.unapply)
   }
 
   /**
@@ -436,6 +488,8 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
 
   private def gatesTable(schema: String) = new TableQuery(new GatesTable(_, Some(schema)))
 
+  private def monitoredAreasTable(schema: String) = new TableQuery(new MonitoredAreasTable(_, Some(schema)))
+
   private def trajectoryTable(schema: String, name: String): TableQuery[TrajRowTable] = new TableQuery(new TrajRowTable(_, Some(schema), name))
 
   private def trajectoryByIDTable(schema: String, name: String): TableQuery[TrajByIDTable] = new TableQuery(new TrajByIDTable(_, Some(schema), name))
@@ -531,6 +585,12 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
     }
   }
 
+  def getMonitoredArea(infra: String)(implicit mc: MarkerContext): Future[Iterable[MonitoredArea]] = {
+    db.run {
+      monitoredAreasTable(infra).result
+    }
+  }
+
 
   def createODZonesTable(infra: String, zones: Iterable[(String, Double, Double, Double, Double, Double, Double, Double, Double, Boolean)])(implicit mc: MarkerContext) = {
     Logger.warn(s"Table ${infra}.graph needs to be created:")
@@ -552,6 +612,15 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
     }
   }
 
+  def createMonitoredAreasTable(infra: String, monitoredAreas: Iterable[MonitoredArea])(implicit mc: MarkerContext) = {
+    Logger.warn(s"Table ${infra}.gates needs to be created:")
+    db.run {
+      DBIO.seq(
+        sqlu"""CREATE TABLE IF NOT EXISTS #${infra}.monitoredareas (name VARCHAR(100), x1 DOUBLE PRECISION , y1 DOUBLE PRECISION , x2 DOUBLE PRECISION, y2 DOUBLE PRECISION, x3 DOUBLE PRECISION , y3 DOUBLE PRECISION , x4 DOUBLE PRECISION, y4 DOUBLE PRECISION, id SERIAL PRIMARY KEY)""",
+        monitoredAreasTable(infra) ++= monitoredAreas
+      )
+    }
+  }
 
   def dropInfra(infra: String): Future[Unit] = {
     //Logger.warn(s"Dropping infrastructure (schema) $infra !")
@@ -591,9 +660,23 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
 
 
   def insertRowIntoTrajTable(schema: String, name: String, row: TrajRowData): Future[Unit] = {
+    //if (row.id == "gpwR0AIW" && row.time < 27123.0) {println(row)}
+    //println(s"INSERT INTO ${schema}.${name}_trajectories VALUES (\'${row.id}\', ${row.time}, ${row.x}, ${row.y})")
     db.run {
       DBIO.seq(
-        trajectoryTable(schema, name + "_trajectories") += row
+        sqlu"""INSERT INTO #${schema}.#${name}_trajectories VALUES ('#${row.id}', #${row.time}, #${row.x}, #${row.y})"""
+        //trajectoryTable(schema, name + "_trajectories") += row
+      )
+    }
+  }
+
+  def insertTrajTableFile(schema: String, name: String, file: String): Future[Unit] = {
+    //if (row.id == "gpwR0AIW" && row.time < 27123.0) {println(row)}
+    println(s"INSERT INTO ${schema}.${name}_trajectories FROM '${file}' WITH (FORMAT csv)")
+    db.run {
+      DBIO.seq(
+        sqlu"""COPY #${schema}.#${name}_trajectories FROM '#${file}' WITH (FORMAT csv)"""
+        //trajectoryTable(schema, name + "_trajectories") += row
       )
     }
   }

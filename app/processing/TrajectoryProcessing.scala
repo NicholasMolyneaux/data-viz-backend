@@ -1,5 +1,6 @@
 package processing
 
+//import java.io.{BufferedWriter, File, FileWriter}
 import java.math.MathContext
 import java.math.RoundingMode.{CEILING, FLOOR}
 
@@ -15,7 +16,7 @@ import play.api.libs.json.Reads
 import play.api.libs.json._
 
 import scala.collection.JavaConversions._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.io.BufferedSource
 import scala.util.{Failure, Success}
 
@@ -24,6 +25,8 @@ class TrajectoryProcessing @Inject()(trackingDataRepo: TrackingDataRepository, c
 
   val uploadDir: String = config.get[String]("data.upload.path")
   val processedDir: String = config.get[String]("data.processed.path")
+  val PGSQLImportDir: String = config.get[String]("data.pgsqlimport")
+
 
   def receive = {
     case "process-traj" => updateTrajContents()
@@ -77,16 +80,18 @@ class TrajectoryProcessing @Inject()(trackingDataRepo: TrackingDataRepository, c
         Logger.warn("Get trajectories by ID... done !")
         Logger.warn("Interpolating trajectories to regular times...")
         //Future {
-        val tol = BigDecimal(0.1)
+        val interval = BigDecimal(0.1)
         val minimumValue = BigDecimal(data.flatMap(_.time).min).setScale(1, scala.math.BigDecimal.RoundingMode.FLOOR)
         val maximumValue = BigDecimal(data.flatMap(_.time).max).setScale(1, scala.math.BigDecimal.RoundingMode.CEILING)
 
         trackingDataRepo.setTrajectoryTimeBounds(infraName, trajName, minimumValue.toDouble, maximumValue.toDouble)
 
-        val times = minimumValue to maximumValue by tol
+        val times = minimumValue to maximumValue by interval
 
-        Logger.warn(times.mkString(", "))
+        //Logger.warn(times.mkString(", "))
         data.foreach(ped => {
+          //println(ped.id)
+          //println(ped.time)
           val interpolatedTimes: Iterable[(String, Double, Double, Double)] = for (t: BigDecimal <- times if ped.time.min <= t && t <= ped.time.max) yield {
             //Logger.warn(t + ", " + ped.id)
             val diff: Vector[BigDecimal] = ped.time.map(v => BigDecimal(v) - t).toVector
@@ -94,6 +99,11 @@ class TrajectoryProcessing @Inject()(trackingDataRepo: TrackingDataRepository, c
 
             val idxSup: Int = diff.indexOf(diff.filter(_ >= 0).min)
             val idxInf: Int = diff.indexOf(diff.filter(_ <= 0).max)
+
+            //println("t " + t + ", " + ped.time.min + ", " + ped.time.max)
+            //println("idxinf " + ped.time(idxInf))
+            //println("idexsup " + ped.time(idxSup))
+
             if (idxInf != idxSup) {
               //Logger.warn(t.toString() + ", " + BigDecimal(ped.time(idxInf)).toString + ", " + BigDecimal(ped.time(idxSup)).toString)
               val tRatio = (t - BigDecimal(ped.time(idxInf))) / (BigDecimal(ped.time(idxSup)) - BigDecimal(ped.time(idxInf)))
@@ -137,6 +147,12 @@ class TrajectoryProcessing @Inject()(trackingDataRepo: TrackingDataRepository, c
       Logger.warn("Starting processing lines of : " + uploadDir + "traj/" + tmpFileName)
       val pedMap: scala.collection.mutable.Map[String, (Double, Double, Double, Double, Double, Double)] = scala.collection.mutable.Map()
       val bufferedSource: scala.io.BufferedSource = scala.io.Source.fromFile(uploadDir + "traj/" + tmpFileName)
+
+      val tmpFile = Paths.get(PGSQLImportDir + "tmp.csv")
+
+      if (Files.exists(tmpFile)) { Files.delete(tmpFile) }
+      val tmpCSVFile = Files.newBufferedWriter(tmpFile)
+
       for (l <- bufferedSource.getLines) {
         val cols = l.split(",")
         val t: Double = cols(3).toDouble * 3600.0 + cols(4).toDouble * 60.0 + cols(5).toDouble + cols(6).toDouble / 1000.0
@@ -147,11 +163,21 @@ class TrajectoryProcessing @Inject()(trackingDataRepo: TrackingDataRepository, c
         if (t > currentPedSum._4) {
           pedMap.update(cols(10), (currentPedSum._1, currentPedSum._2, currentPedSum._3, t, cols(8).toDouble / 1000.0, cols(9).toDouble / 1000.0))
         }
-        trackingDataRepo.insertRowIntoTrajTable(infraName, trajName, TrajRowData(cols(10), t, cols(8).toDouble / 1000.0, cols(9).toDouble / 1000.0))
+        tmpCSVFile.write(cols(10) + "," + t.toString + "," +  cols(8).toDouble / 1000.0 + "," + cols(9).toDouble / 1000.0 + "\n")
+        //trackingDataRepo.insertRowIntoTrajTable(infraName, trajName, TrajRowData(cols(10), t, cols(8).toDouble / 1000.0, cols(9).toDouble / 1000.0))
       }
       bufferedSource.close()
+      tmpCSVFile.close()
       Logger.warn("Finished processing raw trajectory data.")
+
       Files.move(Paths.get(file.getParent + "/" + tmpFileName), Paths.get(processedDir + "traj/" + file.getFileName))
+
+      Files.setOwner(tmpFile, tmpFile.getFileSystem.getUserPrincipalLookupService.lookupPrincipalByName("postgres"))
+
+      import scala.concurrent.duration._
+
+      Await.ready(trackingDataRepo.insertTrajTableFile(infraName, trajName, PGSQLImportDir + "tmp.csv"), Duration.Inf)
+
       pedMap
     }
 

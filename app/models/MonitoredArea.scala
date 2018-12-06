@@ -1,0 +1,3 @@
+package models
+
+case class MonitoredArea(name: String, x1: Double, y1: Double, x2: Double, y2: Double, x3: Double, y3: Double, x4: Double, y4: Double, id: Long = 0)

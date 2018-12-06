@@ -15,7 +15,7 @@ libraryDependencies += "com.github.NicholasMolyneaux" %% "scala-custom" % "1.1.2
 
 //libraryDependencies += "org.postgresql" % "postgresql" % "9.4.1212"
 libraryDependencies += "org.postgresql" % "postgresql" % "9.4-1206-jdbc42"
-libraryDependencies += "com.typesafe.play" %% "play-slick" % "3.0.3"
+libraryDependencies += "com.typesafe.play" %% "play-slick" % "3.0.1"
 //libraryDependencies += "com.typesafe.play" %% "play-slick-evolutions" % "3.0.3"
 libraryDependencies += guice
 libraryDependencies += filters
