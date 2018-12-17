@@ -19,6 +19,7 @@ import scala.util.{Failure, Success}
 
 @Singleton
 class InfrastructureProcessing @Inject()(trackingDataRepo: TrackingDataRepository, config: Configuration)(implicit ec: ExecutionContext) extends Actor {
+
   // ******************************************************************************************
   //                   CASE CLASSES AND IMPLICIT CONVERSIONS FOR CONTINUOUS SPACE
   // ******************************************************************************************
@@ -92,6 +93,7 @@ class InfrastructureProcessing @Inject()(trackingDataRepo: TrackingDataRepositor
 
 
   case class MonitoredAreas_JSON(name: String, x1: Double, y1: Double, x2: Double, y2: Double, x3: Double, y3: Double, x4: Double, y4: Double, targetDensity: Double)
+
   /**
     * Reads a JSON structure into a [[Vertex_JSON]] object. No validation on the arguments is done.
     */

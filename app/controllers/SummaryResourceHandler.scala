@@ -38,7 +38,7 @@ class SummaryResourceHandler @Inject()(routerProvider: Provider[SummaryDataRoute
                                        trackingDataRepo: TrackingDataRepository)(implicit ec: ExecutionContext) {
 
   def lookup(schema: String, name: String, id: String)(implicit mc: MarkerContext): Future[Option[PersonSummaryResource]] = {
-    val summaryFuture = trackingDataRepo.getPedSummary(schema, name,  id)
+    val summaryFuture = trackingDataRepo.getPedSummary(schema, name, id)
     summaryFuture.map { maybePostData =>
       maybePostData.map { summaryData =>
         createPostResource(summaryData)

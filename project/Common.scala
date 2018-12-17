@@ -7,6 +7,7 @@ import sbt.plugins.JvmPlugin
   */
 object Common extends AutoPlugin {
   override def trigger = allRequirements
+
   override def requires: sbt.Plugins = JvmPlugin
 
   override def projectSettings = Seq(

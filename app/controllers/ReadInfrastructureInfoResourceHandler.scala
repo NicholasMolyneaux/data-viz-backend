@@ -21,18 +21,18 @@ import play.api.libs.json._
 
 
 class ReadInfrastructureInfoResourceHandler @Inject()(cc: ReadInfrastructureInfoControllerComponents,
-                                                       routerProvider: Provider[SummaryDataRouter],
-                                                      trackingDataRepo: TrackingDataRepository)(implicit ec: ExecutionContext) extends ReadDBBaseController(cc){
+                                                      routerProvider: Provider[SummaryDataRouter],
+                                                      trackingDataRepo: TrackingDataRepository)(implicit ec: ExecutionContext) extends ReadDBBaseController(cc) {
 
-/*
-  def readInfrastructures(implicit mc: MarkerContext): Future[InfrastructureListResource] = Action.async { implicit request =>
-    trackingDataRepo.getInfrastructures.map { infraList => Ok(Json.toJson(InfrastructureListResource(infraList))) }
-  }
+  /*
+    def readInfrastructures(implicit mc: MarkerContext): Future[InfrastructureListResource] = Action.async { implicit request =>
+      trackingDataRepo.getInfrastructures.map { infraList => Ok(Json.toJson(InfrastructureListResource(infraList))) }
+    }
 
-  private def createInfrastructures(p: Iterable[InfrastructureSummary]): InfrastructureListResource = {
-    InfrastructureListResource(p)
-  }
-*/
+    private def createInfrastructures(p: Iterable[InfrastructureSummary]): InfrastructureListResource = {
+      InfrastructureListResource(p)
+    }
+  */
 
   implicit val InfrastructureSummaryWrites: Writes[InfrastructureSummary] = (
     (JsPath \ "name").write[String] and

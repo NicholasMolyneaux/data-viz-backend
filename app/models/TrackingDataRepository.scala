@@ -86,7 +86,9 @@ trait TrackingDataRepository {
 }
 
 
-trait test2 { self: HasDatabaseConfig[MyPGProfile] =>
+trait test2 {
+  self: HasDatabaseConfig[MyPGProfile] =>
+
   import profile.api._
 
   /*class Companies(tag: Tag) extends Table[Company](tag, "COMPANY") {
@@ -131,8 +133,11 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
     def description = column[String]("description")
 
     def xmin = column[Double]("x_min")
+
     def xmax = column[Double]("x_max")
+
     def ymin = column[Double]("y_min")
+
     def ymax = column[Double]("y_max")
 
 
@@ -165,6 +170,7 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
     def isprocessed = column[Boolean]("isprocessed")
 
     def tmin = column[Double]("t_min")
+
     def tmax = column[Double]("t_max")
 
     /** The ID column, which is the primary key, and auto incremented */
@@ -277,7 +283,6 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
 
     /** The exit time column */
     def y4 = column[Double]("y4")
-
 
 
     /**
@@ -469,7 +474,7 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
       * In this case, we are simply passing the id, name and page parameters to the Person case classes
       * apply and unapply methods.
       */
-    def * = (id, time, x, y)// <> ((TrajByTimeTEMPTable.apply _).tupled, TrajByTimeTEMPTable.unapply)
+    def * = (id, time, x, y) // <> ((TrajByTimeTEMPTable.apply _).tupled, TrajByTimeTEMPTable.unapply)
   }
 
   //import dbConfig.profile.api._
@@ -497,7 +502,6 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
   private def trajectoryByTimeTable(schema: String, name: String): TableQuery[TrajByTimeTable] = new TableQuery(new TrajByTimeTable(_, Some(schema), name))
 
   private def trajectoryByTimeTEMPTable(schema: String, name: String): TableQuery[TrajByTimeTEMPTable] = new TableQuery(new TrajByTimeTEMPTable(_, Some(schema), name))
-
 
 
   def getPedListSummary(schema: String, name: String)(implicit mc: MarkerContext): Future[Iterable[PersonSummaryData]] = db.run {
@@ -658,7 +662,6 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
   }
 
 
-
   def insertRowIntoTrajTable(schema: String, name: String, row: TrajRowData): Future[Unit] = {
     //if (row.id == "gpwR0AIW" && row.time < 27123.0) {println(row)}
     //println(s"INSERT INTO ${schema}.${name}_trajectories VALUES (\'${row.id}\', ${row.time}, ${row.x}, ${row.y})")
@@ -738,48 +741,65 @@ class TrackingDataRepositoryImpl @Inject()(protected val dbConfigProvider: Datab
   }
 
 
-
   def insertRowIntoTempTrajTimeTable(infra: String, traj: String, rows: Iterable[(String, Double, Double, Double)]): Future[Unit] = {
     //Logger.warn(rows.mkString("\n"))
-    db.run{DBIO.seq {trajectoryByTimeTEMPTable(infra, traj+"_trajectories_time_temp") ++= rows}}
-      //DBIO.seq(
-      //  sqlu"""INSERT INTO #${infra}.#${traj}_trajectories_time_temp VALUES (#${row._1}, #${row._2}, #${row._3}, #${row._4})"""
-      //)
+    db.run {
+      DBIO.seq {
+        trajectoryByTimeTEMPTable(infra, traj + "_trajectories_time_temp") ++= rows
+      }
+    }
+    //DBIO.seq(
+    //  sqlu"""INSERT INTO #${infra}.#${traj}_trajectories_time_temp VALUES (#${row._1}, #${row._2}, #${row._3}, #${row._4})"""
+    //)
     //}
   }
 
   //implicit val getTrajDataByIDResult = GetResult(r => WallData(r.nextDouble(), r.nextDouble(), r.nextDouble(), r.nextDouble(), r.nextInt()))
 
-    def getTrajectoriesByID(infra: String, traj: String, ids: Option[Iterable[String]]): Future[Iterable[TrajDataByID]] = {
-      if (ids.isDefined) {
-        db.run{
-          (for {r <- trajectoryByIDTable(infra, traj+"_trajectories_id") if r.id inSetBind ids.get} yield r).result
-        }
-      } else {
-        db.run{
-          trajectoryByIDTable(infra, traj+"_trajectories_id").result
-        }
+  def getTrajectoriesByID(infra: String, traj: String, ids: Option[Iterable[String]]): Future[Iterable[TrajDataByID]] = {
+    if (ids.isDefined) {
+      db.run {
+        (for {r <- trajectoryByIDTable(infra, traj + "_trajectories_id") if r.id inSetBind ids.get} yield r).result
+      }
+    } else {
+      db.run {
+        trajectoryByIDTable(infra, traj + "_trajectories_id").result
       }
     }
+  }
 
   def getPedIDs(infra: String, traj: String): Future[Iterable[String]] = {
-    db.run { (for (r <- trajectoryByIDTable(infra, traj+"_trajectories_id")) yield {r.id} ).result }
+    db.run {
+      (for (r <- trajectoryByIDTable(infra, traj + "_trajectories_id")) yield {
+        r.id
+      }).result
+    }
   }
 
 
   def getTrajectories(infra: String, traj: String): Future[Iterable[TrajRowData]] = {
-    db.run { trajectoryTable(infra, traj+"_trajectories").result }
+    db.run {
+      trajectoryTable(infra, traj + "_trajectories").result
+    }
   }
 
   def getTrajectoriesByTime(infra: String, traj: String, lb: Option[Double] = None, ub: Option[Double] = None): Future[Iterable[TrajDataByTime]] = {
     if (lb.isDefined && ub.isEmpty) {
-      db.run { trajectoryByTimeTable(infra, traj+"_trajectories_time").filter(t => t.time >= lb.get).result }
+      db.run {
+        trajectoryByTimeTable(infra, traj + "_trajectories_time").filter(t => t.time >= lb.get).result
+      }
     } else if (lb.isEmpty && ub.isDefined) {
-      db.run { trajectoryByTimeTable(infra, traj+"_trajectories_time").filter(t => t.time <= ub.get).result }
+      db.run {
+        trajectoryByTimeTable(infra, traj + "_trajectories_time").filter(t => t.time <= ub.get).result
+      }
     } else if (lb.isDefined && ub.isDefined) {
-      db.run { trajectoryByTimeTable(infra, traj+"_trajectories_time").filter(t => t.time >= lb.get && t.time <= ub.get).result }
+      db.run {
+        trajectoryByTimeTable(infra, traj + "_trajectories_time").filter(t => t.time >= lb.get && t.time <= ub.get).result
+      }
     } else {
-      db.run { trajectoryByTimeTable(infra, traj+"_trajectories_time").result }
+      db.run {
+        trajectoryByTimeTable(infra, traj + "_trajectories_time").result
+      }
     }
   }
 }

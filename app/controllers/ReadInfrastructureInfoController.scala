@@ -67,4 +67,5 @@ class ReadInfrastructureInfoController @Inject()(cc: ReadInfrastructureInfoContr
       }
     }
   }
+
 }

@@ -7,6 +7,7 @@ import play.api.libs.json._
 import routers.SummaryDataRouter
 
 import scala.concurrent.{ExecutionContext, Future}
+
 /*
 class ReadInfrastructureInfoResourceHandler @Inject()(routerProvider: Provider[SummaryDataRouter],
                                                       trackingDataRepo: TrackingDataRepository)(implicit ec: ExecutionContext) {

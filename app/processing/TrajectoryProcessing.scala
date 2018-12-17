@@ -70,7 +70,7 @@ class TrajectoryProcessing @Inject()(trackingDataRepo: TrackingDataRepository, c
           }
         })
       })
-      })
+    })
 
 
     def interpolateToTimes(): Future[Unit] = {
@@ -150,7 +150,9 @@ class TrajectoryProcessing @Inject()(trackingDataRepo: TrackingDataRepository, c
 
       val tmpFile = Paths.get(PGSQLImportDir + "tmp.csv")
 
-      if (Files.exists(tmpFile)) { Files.delete(tmpFile) }
+      if (Files.exists(tmpFile)) {
+        Files.delete(tmpFile)
+      }
       val tmpCSVFile = Files.newBufferedWriter(tmpFile)
 
       for (l <- bufferedSource.getLines) {
@@ -163,7 +165,7 @@ class TrajectoryProcessing @Inject()(trackingDataRepo: TrackingDataRepository, c
         if (t > currentPedSum._4) {
           pedMap.update(cols(10), (currentPedSum._1, currentPedSum._2, currentPedSum._3, t, cols(8).toDouble / 1000.0, cols(9).toDouble / 1000.0))
         }
-        tmpCSVFile.write(cols(10) + "," + t.toString + "," +  cols(8).toDouble / 1000.0 + "," + cols(9).toDouble / 1000.0 + "\n")
+        tmpCSVFile.write(cols(10) + "," + t.toString + "," + cols(8).toDouble / 1000.0 + "," + cols(9).toDouble / 1000.0 + "\n")
         //trackingDataRepo.insertRowIntoTrajTable(infraName, trajName, TrajRowData(cols(10), t, cols(8).toDouble / 1000.0, cols(9).toDouble / 1000.0))
       }
       bufferedSource.close()
@@ -189,21 +191,22 @@ class TrajectoryProcessing @Inject()(trackingDataRepo: TrackingDataRepository, c
 
       Logger.warn("Creating summary table...")
       Logger.warn(pedMap.keys.mkString(", "))
-      trackingDataRepo.getZones(infraName).map(zones => {//onComplete {
+      trackingDataRepo.getZones(infraName).map(zones => {
+        //onComplete {
         //case Success(zones) => {
         Logger.warn(zones.mkString(", "))
-          pedMap.foreach(ped => {
-            val OZone: Option[ZoneData] = zones.find(z => z.isInside((ped._2._2, ped._2._3)))
-            val DZone: Option[ZoneData] = zones.find(z => z.isInside((ped._2._5, ped._2._6))) //.get.name
-            Logger.warn(ped._1 + ", " + ped._2.toString() + ", " + OZone.isDefined + ", " + DZone.isDefined)
-            if (OZone.isDefined && DZone.isDefined) {
-              val tt: Double = ped._2._4 - ped._2._1
-              trackingDataRepo.insertRowIntoPedSummaryTable(infraName, trajName, PersonSummaryData(ped._1, OZone.get.name, DZone.get.name, ped._2._1, ped._2._4, tt))
-            }
-          })
+        pedMap.foreach(ped => {
+          val OZone: Option[ZoneData] = zones.find(z => z.isInside((ped._2._2, ped._2._3)))
+          val DZone: Option[ZoneData] = zones.find(z => z.isInside((ped._2._5, ped._2._6))) //.get.name
+          Logger.warn(ped._1 + ", " + ped._2.toString() + ", " + OZone.isDefined + ", " + DZone.isDefined)
+          if (OZone.isDefined && DZone.isDefined) {
+            val tt: Double = ped._2._4 - ped._2._1
+            trackingDataRepo.insertRowIntoPedSummaryTable(infraName, trajName, PersonSummaryData(ped._1, OZone.get.name, DZone.get.name, ped._2._1, ped._2._4, tt))
+          }
         })
-        //case Failure(f) => throw new Exception("Error getting zones for infra while computing summary. infra=" + infraName + "\n" + f)
-      }
+      })
+      //case Failure(f) => throw new Exception("Error getting zones for infra while computing summary. infra=" + infraName + "\n" + f)
+    }
     //}
   }
 
