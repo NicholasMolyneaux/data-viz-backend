@@ -1,4 +1,4 @@
-#Back-end server for visualizing pedestrian tracking data
+## Back-end server for visualizing pedestrian tracking data
 This repo contains the code for the back-end server which process and serves the data to the front-end visualization.
 There are three main tasks:
 - receive a file from the website and store it somewhere
@@ -10,7 +10,7 @@ As it was the first time I have used such a framework, the architecture and impl
 Many online examples have been used for guidance therefore resemblance between the present code and some material available online is expected.
 Nevertheless, all of the work on this repo has been accomplished specifically for the project given in the "Data Visualization" course taught at EPFL.
 
-##Structure
+## Structure
 There are two direcroties of interest. The first is the conf folder which contains the configuration for the DB connection and the routes to expose in the API.
 The second folder of interest is the app folder which contains all the code. This is the directory structure provided by the play framework.
 
