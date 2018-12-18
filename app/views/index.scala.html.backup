@@ -1,9 +1,0 @@
-@(form: Form[upload.UploadVSForm])(implicit request: MessagesRequestHeader)
-
-    @main("Welcome to Play") {
-        @helper.form(action = routes.UploadController.upload, 'enctype -> "multipart/form-data") {
-            @helper.inputFile(form("name"))
-            @helper.CSRF.formField
-            <input type="submit" id="upload" value="upload file"/>
-        }
-    }
